@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jax-ib-lbm"
+version = "0.1.0"
+description = "2D/3D Immersed Boundary Lattice-Boltzmann Method in JAX"
+requires-python = ">=3.10"
+dependencies = [
+    "jax>=0.4.25",
+    "jaxlib>=0.4.25",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+viz  = ["matplotlib>=3.8"]
+test = ["pytest>=7", "pytest-xdist"]
+dev  = ["jax-ib-lbm[viz,test]"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v"
