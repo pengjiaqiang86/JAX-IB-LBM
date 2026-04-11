@@ -5,7 +5,7 @@ Uses jnp.roll — inherently periodic on all axes.
 Boundary conditions override the boundary cells after this step.
 """
 
-import jax
+import numpy as np
 import jax.numpy as jnp
 
 from src.core.lattice import Lattice
@@ -37,15 +37,22 @@ def stream(
     For D=3: c[:,0]=cx -> axis 2, c[:,1]=cy -> axis 1, c[:,2]=cz -> axis 0
     """
     ndim = lattice.D
-    # spatial axis for each velocity component: component 0 -> last spatial axis
+    # spatial axis for velocity component d: component 0 (x) -> last spatial axis
     spatial_axes = list(range(ndim - 1, -1, -1))  # [1,0] for 2D, [2,1,0] for 3D
 
-    def shift_one(fi, cq):
-        # fi: (*spatial,), cq: (D,)
-        for comp, ax in enumerate(spatial_axes):
-            fi = jnp.roll(fi, int(cq[comp]), axis=ax)
-        return fi
+    # np.asarray forces a concrete NumPy array regardless of JAX tracing context.
+    # LatticeDescriptor is a NamedTuple, so JAX treats it as a pytree and
+    # makes its array fields (c, w, opp) abstract tracers when it crosses any
+    # JIT/scan boundary. np.asarray extracts concrete values before indexing.
+    c_np = np.asarray(lattice.c)   # (Q, D)  always concrete Python ints
 
-    # vmap over the Q axis (last axis of f)
-    f_shifted = jax.vmap(shift_one, in_axes=(2, 0), out_axes=2)(f, lattice.c)
-    return f_shifted
+    slices = []
+    for q in range(lattice.Q):
+        fi = f[..., q]                              # (*spatial,)
+        for comp, ax in enumerate(spatial_axes):
+            shift = int(c_np[q, comp])              # always a concrete Python int
+            if shift != 0:
+                fi = jnp.roll(fi, shift, axis=ax)
+        slices.append(fi)
+
+    return jnp.stack(slices, axis=-1)           # (*spatial, Q)

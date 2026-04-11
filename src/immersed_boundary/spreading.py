@@ -50,41 +50,41 @@ def ib_force_spreading(
     # axis order in grid.shape: (NY, NX) or (NZ, NY, NX)
     # spacing order: (dy, dx) or (dz, dy, dx)
 
-    def spread_one(g, k):
-        X_k  = body.X[k]     # (D,)
-        F_k  = body.F[k]     # (D,)
-        ds_k = body.ds[k]    # scalar
+    # Pre-compute spacing as a plain JAX array once (outside the loop).
+    sp = jnp.array(spacing)          # (D,)  always concrete at build time
 
-        # base grid index (x-component → last spatial axis)
+    def spread_one(g, k):
+        X_k  = body.X[k]             # (D,)  — traced inside fori_loop
+        F_k  = body.F[k]             # (D,)
+        ds_k = body.ds[k]            # scalar
+
+        # Base grid index: component d of X_k maps to spatial axis (D-1-d).
+        # Keep as JAX int32 — do NOT call int() on traced values.
         idx = jnp.array([X_k[d] / spacing[D - 1 - d] for d in range(D)])
-        i0  = jnp.floor(idx).astype(jnp.int32)
+        i0  = jnp.floor(idx).astype(jnp.int32)   # (D,)  traced int32
 
         if D == 2:
-            for oy in offsets:
+            for oy in offsets:       # Python loop: oy, ox are concrete Python ints
                 for ox in offsets:
-                    iy = int(jnp.mod(i0[1] + oy, grid.NY))
-                    ix = int(jnp.mod(i0[0] + ox, grid.NX))
-                    x_grid = jnp.array([
-                        ix * spacing[-1],
-                        iy * spacing[-2],
-                    ])
-                    r = (x_grid - X_k) / jnp.array(spacing[::-1])
+                    # jnp.mod with a traced base + concrete offset → traced int32
+                    iy = jnp.mod(i0[1] + oy, grid.NY)
+                    ix = jnp.mod(i0[0] + ox, grid.NX)
+                    # Physical position of this stencil cell (traced floats)
+                    x_grid = jnp.stack([ix * sp[-1], iy * sp[-2]])
+                    r = (x_grid - X_k) / sp[::-1]
                     w = jnp.prod(kernel.phi(r)) * ds_k
+                    # .at[traced_idx].add() is fully supported in JAX
                     g = g.at[iy, ix, :].add(F_k * w)
 
         elif D == 3:
             for oz in offsets:
                 for oy in offsets:
                     for ox in offsets:
-                        iz = int(jnp.mod(i0[2] + oz, grid.NZ))
-                        iy = int(jnp.mod(i0[1] + oy, grid.NY))
-                        ix = int(jnp.mod(i0[0] + ox, grid.NX))
-                        x_grid = jnp.array([
-                            ix * spacing[-1],
-                            iy * spacing[-2],
-                            iz * spacing[-3],
-                        ])
-                        r = (x_grid - X_k) / jnp.array(spacing[::-1])
+                        iz = jnp.mod(i0[2] + oz, grid.NZ)
+                        iy = jnp.mod(i0[1] + oy, grid.NY)
+                        ix = jnp.mod(i0[0] + ox, grid.NX)
+                        x_grid = jnp.stack([ix * sp[-1], iy * sp[-2], iz * sp[-3]])
+                        r = (x_grid - X_k) / sp[::-1]
                         w = jnp.prod(kernel.phi(r)) * ds_k
                         g = g.at[iz, iy, ix, :].add(F_k * w)
         return g
