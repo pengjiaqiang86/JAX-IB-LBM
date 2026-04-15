@@ -18,11 +18,12 @@ import jax.numpy as jnp
 class Lattice(NamedTuple):
     """Immutable, JAX-traceable lattice definition."""
 
-    D: int            # spatial dimension
-    Q: int            # number of discrete velocities
-    c: jnp.ndarray    # (Q, D) lattice velocity vectors (integer values)
-    w: jnp.ndarray    # (Q,)   weights
-    opp: jnp.ndarray  # (Q,)   opposite-direction index
+    D:   int            # spatial dimension
+    Q:   int            # number of discrete velocities
+    c:   jnp.ndarray    # (Q, D) lattice velocity vectors (integer values)
+    w:   jnp.ndarray    # (Q,)   weights
+    opp: jnp.ndarray    # (Q,)   opposite-direction index
+    cs2: float          # lattice speed of sound squared (cs² = 1/3 for standard lattices)
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +54,7 @@ _w_d2q9 = jnp.array([
 
 _opp_d2q9 = jnp.array([0, 3, 4, 1, 2, 7, 8, 5, 6], dtype=jnp.int32)
 
-D2Q9 = Lattice(D=2, Q=9, c=_c_d2q9, w=_w_d2q9, opp=_opp_d2q9)
+D2Q9 = Lattice(D=2, Q=9, c=_c_d2q9, w=_w_d2q9, opp=_opp_d2q9, cs2=1.0/3.0)
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +97,7 @@ _opp_d3q19 = jnp.array(
     dtype=jnp.int32,
 )
 
-D3Q19 = Lattice(D=3, Q=19, c=_c_d3q19, w=_w_d3q19, opp=_opp_d3q19)
+D3Q19 = Lattice(D=3, Q=19, c=_c_d3q19, w=_w_d3q19, opp=_opp_d3q19, cs2=1.0/3.0)
 
 
 # ---------------------------------------------------------------------------
@@ -126,4 +127,4 @@ def _build_d3q27():
 
 
 _c_d3q27, _w_d3q27, _opp_d3q27 = _build_d3q27()
-D3Q27 = Lattice(D=3, Q=27, c=_c_d3q27, w=_w_d3q27, opp=_opp_d3q27)
+D3Q27 = Lattice(D=3, Q=27, c=_c_d3q27, w=_w_d3q27, opp=_opp_d3q27, cs2=1.0/3.0)

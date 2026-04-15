@@ -73,11 +73,11 @@ def _bounce_back(
     f_reflected = f[..., lattice.opp]
 
     if moving_velocity is not None:
-        # Momentum correction: 2 * w[q] * rho * (c[q] · u_wall)
+        # Momentum correction: 2 * w[q] * rho * (c[q] · u_wall) / cs²
         rho = jnp.sum(f, axis=-1)                              # (*spatial,)
         # cu_wall: (*spatial, Q)
         cu_wall = jnp.einsum("qd,...d->...q", lattice.c, moving_velocity)
-        correction = 2.0 * lattice.w * rho[..., None] * cu_wall
+        correction = (2.0 / lattice.cs2) * lattice.w * rho[..., None] * cu_wall
         f_reflected = f_reflected + correction
 
     # Apply only on solid nodes (broadcast mask over Q)

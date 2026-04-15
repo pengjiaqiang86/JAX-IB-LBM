@@ -8,9 +8,9 @@ term F (*spatial, Q) that is added to the BGK collision:
 
 where
 
-    F_q = w_q * [ (c_q - u)/cs^2 + (c_q · u) * c_q / cs^4 ] · g
+    F_q = w_q * [ (c_q - u)/cs² + (c_q · u) * c_q / cs⁴ ] · g
 
-with cs^2 = 1/3 for standard lattices.
+cs² is read from lattice.cs2.
 
 Reference
 ---------
@@ -26,7 +26,6 @@ def guo_forcing_term(
     g:       jnp.ndarray,    # (*spatial, D)  body force density
     u:       jnp.ndarray,    # (*spatial, D)  fluid velocity
     lattice: Lattice,
-    cs2:     float = 1.0 / 3.0,
 ) -> jnp.ndarray:
     """
     Compute the Guo forcing source term F (*spatial, Q).
@@ -35,20 +34,20 @@ def guo_forcing_term(
     ----------
     g       : (*spatial, D)  body force density (physical units)
     u       : (*spatial, D)  fluid velocity
-    lattice : Lattice
-    cs2     : lattice speed of sound squared (1/3 for standard LBM)
+    lattice : Lattice        cs² is taken from lattice.cs2
 
     Returns
     -------
     F : (*spatial, Q)  source term to be added to BGK collision
     """
+    cs2 = lattice.cs2
+
     # c_q · u  →  (*spatial, Q)
     cu = jnp.einsum("qd,...d->...q", lattice.c, u)
 
     # c_q · g  →  (*spatial, Q)
     cg = jnp.einsum("qd,...d->...q", lattice.c, g)
 
-    # u · g  →  (*spatial, 1)  — not needed in Guo; term is (c_q - u) · g
     # (c_q - u) · g = c_q·g - u·g
     ug = jnp.sum(u * g, axis=-1, keepdims=True)   # (*spatial, 1)
 

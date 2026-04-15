@@ -15,7 +15,7 @@ class SimulationParams(NamedTuple):
     u_ref  : reference (inlet) velocity in LBM units
     L_ref  : reference length in grid cells
     nu     : kinematic viscosity  = u_ref * L_ref / Re
-    tau    : relaxation time      = 3 * nu + 0.5
+    tau    : relaxation time      = nu / cs² + 0.5
     omega  : relaxation frequency = 1 / tau
     """
 
@@ -27,7 +27,12 @@ class SimulationParams(NamedTuple):
     omega: float
 
     @staticmethod
-    def from_Re(Re: float, u_ref: float, L_ref: float) -> "SimulationParams":
+    def from_Re(
+        Re:    float,
+        u_ref: float,
+        L_ref: float,
+        cs2:   float = 1.0 / 3.0,
+    ) -> "SimulationParams":
         """
         Construct params from the three independent inputs.
 
@@ -36,9 +41,12 @@ class SimulationParams(NamedTuple):
         Re    : target Reynolds number
         u_ref : reference velocity in LBM units (typically 0.05–0.1 for stability)
         L_ref : characteristic length in grid cells
+        cs2   : lattice speed of sound squared (default 1/3 for standard lattices).
+                Pass lattice.cs2 to ensure consistency with your lattice choice.
+                Determines tau via  nu = cs² * (tau - 0.5)  →  tau = nu/cs² + 0.5
         """
         nu    = u_ref * L_ref / Re
-        tau   = 3.0 * nu + 0.5
+        tau   = nu / cs2 + 0.5
         omega = 1.0 / tau
         if tau <= 0.5:
             raise ValueError(
