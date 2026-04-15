@@ -46,15 +46,13 @@ def make_lbm_step(
 
     @jax.jit
     def step(state: FluidState) -> FluidState:
-        # --- macroscopic ---
-        rho, u = compute_macroscopic(state.f, lattice)
+        # --- macroscopic (Guo velocity correction applied when g is present) ---
+        rho, u = compute_macroscopic(state.f, lattice, g=state.g)
 
         # --- Guo forcing source term (if body force present) ---
         g_force = None
         if state.g is not None:
             g_force = guo_forcing_term(state.g, u, lattice)
-            # Velocity correction for Guo: u_eff = u + g*dt/(2*rho)
-            u = u + 0.5 * state.g / rho[..., None]
 
         # --- equilibrium & collision ---
         feq    = compute_equilibrium(rho, u, lattice)
