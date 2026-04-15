@@ -52,7 +52,7 @@ def ib_step(
     (state_new, body_new) : updated fluid state (g set) and Lagrangian body
     """
     # 1. Get current Eulerian velocity
-    _, u = compute_macroscopic(state.f, lattice)   # (*spatial, D)
+    _, u = compute_macroscopic(state.f, lattice, state.g)   # (*spatial, D)
 
     # 2. Interpolate u → Lagrangian markers
     U_L = ib_velocity_interpolation(u, body, grid, kernel)   # (N, D)

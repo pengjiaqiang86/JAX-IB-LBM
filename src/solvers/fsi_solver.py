@@ -1,6 +1,7 @@
-from typing import List, Callable, Tuple
+from typing import List, Callable, Optional, Tuple
 
 import jax
+import jax.numpy as jnp
 
 from src.core.lattice import Lattice
 from src.core.grid import EulerianGrid
@@ -20,6 +21,7 @@ def make_fsi_step(
     elasticity_model: Callable,
     kernel:           DeltaKernel = PESKIN_4PT,
     dt:               float = 1.0,
+    external_force:   Optional[jnp.ndarray] = None,
     collision:        str = "BGK",
 ) -> Callable[[FluidState, LagrangianBody],
               Tuple[FluidState, LagrangianBody]]:
@@ -30,25 +32,35 @@ def make_fsi_step(
     -----------------
     1. IB step: interpolate u → markers, advance positions,
                 compute elastic forces, spread to Eulerian grid (sets state.g)
-    2. LBM step: collision (with Guo forcing from state.g) + streaming + BCs
+    2. LBM step: f* = f + Ω + S·Δt
+                 where S is built from state.g (IB) + external_force (background)
+
+    Parameters
+    ----------
+    external_force : optional static body-force array (*spatial, D) or (D,).
+                     Combined with the IB spreading force inside the LBM step.
+                     See make_lbm_step for details.
 
     Returns
     -------
-    fsi_step : Callable
-        fsi_step(state, body) -> (state_new, body_new)
+    fsi_step : Callable  —  fsi_step(state, body) -> (state_new, body_new)
     """
-    lbm_step_fn = make_lbm_step(lattice, grid, params, bcs, collision)
+    lbm_step_fn = make_lbm_step(
+        lattice, grid, params, bcs,
+        external_force=external_force,
+        collision=collision,
+    )
 
     @jax.jit
     def fsi_step(
         state: FluidState,
         body:  LagrangianBody,
     ) -> Tuple[FluidState, LagrangianBody]:
-        # IB coupling: spread forces into state.g
+        # IB coupling: spread elastic forces → state.g  (dynamic channel)
         state_with_force, body_new = ib_step(
             state, body, grid, lattice, elasticity_model, kernel, dt
         )
-        # LBM advance: uses state.g via Guo forcing
+        # LBM advance: Ω + S·Δt where S combines state.g and external_force
         state_new = lbm_step_fn(state_with_force)
         return state_new, body_new
 

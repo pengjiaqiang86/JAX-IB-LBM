@@ -1,5 +1,5 @@
 import functools
-from typing import List, Callable
+from typing import List, Callable, Optional
 
 import jax
 import jax.numpy as jnp
@@ -17,51 +17,86 @@ from src.boundary.base import BoundaryCondition
 
 
 def make_lbm_step(
-    lattice:   Lattice,
-    grid:      EulerianGrid,
-    params:    SimulationParams,
-    bcs:       List,                  # List[BoundaryCondition]
-    collision: str = "BGK",
+    lattice:          Lattice,
+    grid:             EulerianGrid,
+    params:           SimulationParams,
+    bcs:              List,
+    external_force:   Optional[jnp.ndarray] = None,
+    collision:        str = "BGK",
 ) -> Callable[[FluidState], FluidState]:
     """
     Build a JIT-compiled single LBM step function.
 
-    The returned function signature is:
-        step(state: FluidState) -> FluidState
+    The full update follows the literature form:
 
-    The lattice, grid, params, and bcs are captured in the closure so the
-    JAX trace sees only the FluidState pytree as a dynamic argument.
+        f*(x, t) = f(x, t)  +  Ω  +  S·Δt
+
+    where
+        Ω   = -ω (f - feq)                  BGK relaxation
+        S·Δt = (1 - ω/2) · F_q              Guo source term (body forces)
+
+    F_q is built from the combined body-force field:
+
+        g_total = state.g  +  external_force
+
+    Two independent force channels feed into S·Δt:
+      * state.g        — dynamic force set each step by the IB coupling
+                         (ib_step spreads Lagrangian forces to the Eulerian grid).
+      * external_force — static background force captured in the closure
+                         (gravity, imposed pressure gradient, etc.).
+                         Shape must broadcast to (*spatial, D).
+
+    Keeping the two channels separate in the code mirrors the physical
+    distinction: the IB force changes every step; the external force is
+    fixed at solver-build time.  Both contribute to the Guo source term
+    via the same (1 - ω/2) · F_q formula.
 
     Parameters
     ----------
-    lattice   : Lattice (D2Q9, D3Q19, D3Q27)
-    grid      : EulerianGrid
-    params    : SimulationParams
-    bcs       : list of BoundaryCondition objects (applied left-to-right
-                after streaming)
-    collision : "BGK" (default) or "MRT" (MRT requires passing M, S)
+    lattice         : Lattice (D2Q9, D3Q19, D3Q27)
+    grid            : EulerianGrid
+    params          : SimulationParams
+    bcs             : list of BoundaryCondition objects
+    external_force  : optional static body-force array, shape (*spatial, D)
+                      or (D,) broadcast.  Examples:
+                        gravity  = jnp.array([0.0, -1e-4])
+                        pg_force = jnp.full((NY, NX, 2), [5e-5, 0.0])
+    collision       : "BGK" (default)
     """
     if collision != "BGK":
         raise NotImplementedError("Only BGK is currently supported.")
 
     @jax.jit
     def step(state: FluidState) -> FluidState:
-        # --- macroscopic (Guo velocity correction applied when g is present) ---
-        rho, u = compute_macroscopic(state.f, lattice, g=state.g)
+        # ── Combine the two force channels ───────────────────────────────
+        # state.g       : dynamic IB force (None between IB steps)
+        # external_force: static background force (None if not set)
+        if state.g is not None and external_force is not None:
+            g_total = state.g + external_force
+        elif external_force is not None:
+            g_total = external_force
+        else:
+            g_total = state.g      # may be None (pure-fluid, no forcing)
 
-        # --- Guo forcing source term (if body force present) ---
-        g_force = None
-        if state.g is not None:
-            g_force = guo_forcing_term(state.g, u, lattice)
+        # ── Ω: macroscopic quantities ─────────────────────────────────────
+        # Guo velocity correction  u_phys = u_raw + g/(2ρ)  is applied here.
+        rho, u = compute_macroscopic(state.f, lattice, g=g_total)
 
-        # --- equilibrium & collision ---
+        # ── S·Δt: Guo source term F_q  (built from combined g_total) ─────
+        # Kept separate from Ω so the split f* = f + Ω + S·Δt is explicit.
+        # bgk_collision applies the (1 - ω/2) prefactor when it adds S·Δt.
+        S = None
+        if g_total is not None:
+            S = guo_forcing_term(g_total, u, lattice)
+
+        # ── f* = f + Ω + S·Δt ────────────────────────────────────────────
         feq    = compute_equilibrium(rho, u, lattice)
-        f_post = bgk_collision(state.f, feq, params.omega, g_force)
+        f_post = bgk_collision(state.f, feq, params.omega, S)
 
-        # --- streaming ---
+        # ── Streaming ─────────────────────────────────────────────────────
         f_str = stream(f_post, lattice)
 
-        # --- boundary conditions (applied in order) ---
+        # ── Boundary conditions ───────────────────────────────────────────
         f_bc = functools.reduce(
             lambda f_, bc: bc.apply(f_, state, lattice, grid),
             bcs,
@@ -81,6 +116,7 @@ def make_lbm_trajectory(
     initial_state:    FluidState,
     n_steps:          int,
     record_interval:  int,
+    external_force:   Optional[jnp.ndarray] = None,
     collision:        str = "BGK",
 ) -> Callable:
     """
@@ -93,7 +129,7 @@ def make_lbm_trajectory(
         (rho_hist, ux_hist, uy_hist)    for 2D
         (rho_hist, ux_hist, uy_hist, uz_hist)  for 3D
     """
-    step = make_lbm_step(lattice, grid, params, bcs, collision)
+    step = make_lbm_step(lattice, grid, params, bcs, external_force, collision)
     n_records = n_steps // record_interval
 
     @jax.jit
@@ -103,7 +139,7 @@ def make_lbm_trajectory(
                 return step(s), None
             state_new, _ = jax.lax.scan(inner, state, None,
                                         length=record_interval)
-            rho, u = compute_macroscopic(state_new.f, lattice)
+            rho, u = compute_macroscopic(state_new.f, lattice, state_new.g)
             return state_new, (rho, u)
 
         final_state, (rho_hist, u_hist) = jax.lax.scan(

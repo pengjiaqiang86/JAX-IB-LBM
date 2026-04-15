@@ -37,7 +37,8 @@ def bgk_collision(
     feq      : (*spatial, Q)   equilibrium distributions
     omega    : float           relaxation frequency  1/tau
     g_force  : (*spatial, Q) or None
-               Guo forcing source term (already in f-space).
+               Raw Guo forcing term F_q from guo_forcing_term().
+               The (1 − ω/2) prefactor is applied here, not in guo.py.
                Pass None to skip forcing.
 
     Returns

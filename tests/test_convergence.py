@@ -56,7 +56,7 @@ def test_poiseuille_profile():
         return jax.lax.scan(inner, state, None, length=5000)[0]
 
     final = run(state0)
-    _, u  = compute_macroscopic(final.f, D2Q9)
+    _, u  = compute_macroscopic(final.f, D2Q9, final.g)
     ux    = u[1:-1, NX // 2, 0]   # centre column, fluid rows only
 
     # Analytical Poiseuille: u(y) = G/(2nu) * y*(H-y)

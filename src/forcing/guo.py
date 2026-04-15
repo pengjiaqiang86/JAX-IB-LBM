@@ -1,14 +1,17 @@
 """
 Guo et al. (2002) body-force scheme for LBM.
 
-Converts a physical body-force density g (*spatial, D) into a source
-term F (*spatial, Q) that is added to the BGK collision:
+The full BGK update with body force is (Guo 2002, Eq. 20):
 
-    f_post = f - omega*(f - feq) + (1 - omega/2) * F
+    f_post = f - ω(f - feq) + (1 - Δt/(2τ)) · F_q
 
-where
+where F_q is the discrete forcing term:
 
-    F_q = w_q * [ (c_q - u)/cs² + (c_q · u) * c_q / cs⁴ ] · g
+    F_q = w_q · [(c_q − u)/cs²  +  (c_q · u) c_q / cs⁴] · g
+
+This module computes F_q only.  The prefactor (1 − ω/2) = (1 − Δt/(2τ))
+is applied separately in bgk_collision / mrt_collision, so that the
+collision operator remains responsible for all terms it adds to f.
 
 cs² is read from lattice.cs2.
 
