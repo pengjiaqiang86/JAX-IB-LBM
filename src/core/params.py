@@ -4,6 +4,7 @@ SimulationParams: physical and LBM parameters derived from Re, u_ref, L_ref.
 
 from typing import NamedTuple
 
+from src.core.lattice import Lattice
 
 class SimulationParams(NamedTuple):
     """
@@ -28,25 +29,26 @@ class SimulationParams(NamedTuple):
 
     @staticmethod
     def from_Re(
-        Re:    float,
-        u_ref: float,
-        L_ref: float,
-        cs2:   float = 1.0 / 3.0,
+        Re:      float,
+        u_ref:   float,
+        L_ref:   float,
+        lattice: Lattice,
     ) -> "SimulationParams":
         """
         Construct params from the three independent inputs.
 
         Parameters
         ----------
-        Re    : target Reynolds number
-        u_ref : reference velocity in LBM units (typically 0.05–0.1 for stability)
-        L_ref : characteristic length in grid cells
-        cs2   : lattice speed of sound squared (default 1/3 for standard lattices).
-                Pass lattice.cs2 to ensure consistency with your lattice choice.
-                Determines tau via  nu = cs² * (tau - 0.5)  →  tau = nu/cs² + 0.5
+        Re     : target Reynolds number
+        u_ref  : reference velocity in LBM units (typically 0.05–0.1 for stability)
+        L_ref  : characteristic length in grid cells
+        lattice: Lattice model used in simulation
         """
+        # cs2: lattice speed of sound squared (default 1/3 for standard lattices).
+        # Pass lattice.cs2 to ensure consistency with your lattice choice.
+        # Determines tau via  nu = cs² * (tau - 0.5)  →  tau = nu/cs² + 0.5
         nu    = u_ref * L_ref / Re
-        tau   = nu / cs2 + 0.5
+        tau   = nu / lattice.cs2 + 0.5
         omega = 1.0 / tau
         if tau <= 0.5:
             raise ValueError(
