@@ -95,10 +95,12 @@ def mrt_collision(
         # Guo correction in moment space: (I - S/2) M^{-1} F_hat
         # Here g_force is already in f-space; convert to moment space, apply
         F_hat  = jnp.einsum("qp,...p->...q", M, g_force)
-        correction = jnp.einsum(
-            "qp,...p->...q", M_inv,
-            (jnp.eye(M.shape[0]) - 0.5 * S) @ F_hat.reshape(-1, M.shape[0])
-        ).reshape(f.shape)
+        F_hat_corr = jnp.einsum(
+            "qp,...p->...q",
+            jnp.eye(M.shape[0]) - 0.5 * S,
+            F_hat,
+        )
+        correction = jnp.einsum("qp,...p->...q", M_inv, F_hat_corr)
         f_post = f_post + correction
 
     return f_post

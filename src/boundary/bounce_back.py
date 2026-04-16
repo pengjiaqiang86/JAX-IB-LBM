@@ -104,3 +104,31 @@ def make_solid_mask_rectangle(
         mask = mask.at[NY - 1, :].set(True)
     mask = mask.at[y_start:y_end, x_start:x_end].set(True)
     return mask
+
+
+def make_solid_mask_circle(
+    grid:        EulerianGrid,
+    center_x:    float,
+    center_y:    float,
+    radius:      float,
+    add_walls:   bool = True,
+) -> jnp.ndarray:
+    """
+    Helper: build a 2D solid mask with top/bottom walls and a circular obstacle.
+
+    Parameters
+    ----------
+    grid      : EulerianGrid
+    center_x  : circle centre x-coordinate in lattice units
+    center_y  : circle centre y-coordinate in lattice units
+    radius    : circle radius in lattice units
+    add_walls : if True, include the south and north channel walls
+    """
+    NY, NX = grid.NY, grid.NX
+    Y, X = jnp.meshgrid(jnp.arange(NY, dtype=float), jnp.arange(NX, dtype=float),
+                        indexing="ij")
+    mask = (X - center_x) ** 2 + (Y - center_y) ** 2 <= radius ** 2
+    if add_walls:
+        mask = mask.at[0, :].set(True)
+        mask = mask.at[NY - 1, :].set(True)
+    return mask

@@ -1,12 +1,9 @@
 """
 Dirichlet boundary conditions via the Zou-He scheme.
 
-DirichletVelocityBC  — prescribed velocity (e.g. inlet profile)
-DirichletPressureBC  — prescribed density/pressure (e.g. pressure outlet)
-
-Both support:
-  - All four faces in 2D (west/east/south/north)
-  - All six faces in 3D (+ bottom/top)
+Implemented coverage:
+  - D2Q9 velocity BCs on west/east faces
+  - D2Q9 pressure BCs on west/east faces
   - Spatially and temporally varying profiles via callable u_fn / rho_fn
 
 Reference
@@ -99,6 +96,28 @@ def _zou_he_pressure_east_d2q9(
     return f
 
 
+def _zou_he_pressure_west_d2q9(
+    f: jnp.ndarray,
+    rho_bc: jnp.ndarray,   # (NY,)
+    lattice: Lattice,
+) -> jnp.ndarray:
+    """Apply Zou-He pressure (density) BC on the west face for D2Q9."""
+    f0 = f[:, 0, 0]
+    f2 = f[:, 0, 2]; f4 = f[:, 0, 4]
+    f3 = f[:, 0, 3]; f6 = f[:, 0, 6]; f7 = f[:, 0, 7]
+
+    ux = 1.0 - (f0 + f2 + f4 + 2.0 * (f3 + f6 + f7)) / rho_bc
+
+    f1 = f3 + (2.0 / 3.0) * rho_bc * ux
+    f5 = f7 - 0.5 * (f2 - f4) + (1.0 / 6.0) * rho_bc * ux
+    f8 = f6 + 0.5 * (f2 - f4) + (1.0 / 6.0) * rho_bc * ux
+
+    f = f.at[:, 0, 1].set(f1)
+    f = f.at[:, 0, 5].set(f5)
+    f = f.at[:, 0, 8].set(f8)
+    return f
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -109,11 +128,10 @@ class DirichletVelocityBC(NamedTuple):
 
     Parameters
     ----------
-    face  : one of "west" | "east" | "south" | "north" | "bottom" | "top"
+    face  : one of "west" | "east"
     u_fn  : Callable[[int], jnp.ndarray]
             Maps time-step t to a velocity array on the face:
               2D west/east : (NY, 2)
-              2D south/north: (NX, 2)
             For a uniform inlet:  lambda t: jnp.full((NY, 2), [u_in, 0.0])
             For a parabolic profile use a time-independent function.
     """
@@ -146,7 +164,7 @@ class DirichletPressureBC(NamedTuple):
 
     Parameters
     ----------
-    face   : one of "west" | "east" | "south" | "north"
+    face   : one of "west" | "east"
     rho_fn : Callable[[int], jnp.ndarray]  or float
              Returns target density on the face.
              Float is broadcast to the full face shape.
@@ -169,6 +187,8 @@ class DirichletPressureBC(NamedTuple):
             rho_bc = jnp.full((face_len,), self.rho_fn)
 
         if lattice.D == 2 and lattice.Q == 9:
+            if self.face == "west":
+                return _zou_he_pressure_west_d2q9(f, rho_bc, lattice)
             if self.face == "east":
                 return _zou_he_pressure_east_d2q9(f, rho_bc, lattice)
         raise NotImplementedError(

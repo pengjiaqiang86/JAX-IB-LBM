@@ -114,8 +114,8 @@ def make_lbm_trajectory(
     params:           SimulationParams,
     bcs:              List,
     initial_state:    FluidState,
-    n_steps:          int,
-    record_interval:  int,
+    inner_step:       int,
+    outer_step:       int,
     external_force:   Optional[jnp.ndarray] = None,
     collision:        str = "BGK",
 ) -> Callable:
@@ -125,28 +125,29 @@ def make_lbm_trajectory(
     Returns a callable with no arguments that, when called, runs the full
     simulation and returns (final_state, snapshots).
 
-    snapshots is a tuple of arrays each with shape (n_records, *spatial):
+    The solver advances the state by `inner_step` numerical steps, records
+    one snapshot, and repeats that process `outer_step` times.
+
+    snapshots is a tuple of arrays each with shape (outer_step, *spatial):
         (rho_hist, ux_hist, uy_hist)    for 2D
         (rho_hist, ux_hist, uy_hist, uz_hist)  for 3D
     """
     step = make_lbm_step(lattice, grid, params, bcs, external_force, collision)
-    n_records = n_steps // record_interval
 
     @jax.jit
     def run():
-        def one_chunk(state, _):
+        def one_record(state, _):
             def inner(s, _):
                 return step(s), None
-            state_new, _ = jax.lax.scan(inner, state, None,
-                                        length=record_interval)
+            state_new, _ = jax.lax.scan(inner, state, None, length=inner_step)
             rho, u = compute_macroscopic(state_new.f, lattice, state_new.g)
             return state_new, (rho, u)
 
         final_state, (rho_hist, u_hist) = jax.lax.scan(
-            one_chunk, initial_state, None, length=n_records
+            one_record, initial_state, None, length=outer_step
         )
         return final_state, rho_hist, u_hist
-        # rho_hist : (n_records, *spatial)
-        # u_hist   : (n_records, *spatial, D)
+        # rho_hist : (outer_step, *spatial)
+        # u_hist   : (outer_step, *spatial, D)
 
     return run

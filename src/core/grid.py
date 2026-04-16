@@ -22,8 +22,8 @@ class EulerianGrid:
     shape : tuple of int
         (NY, NX) for 2D, (NZ, NY, NX) for 3D.
     dx : float
-        Grid spacing.  Assumed isotropic; pass a tuple (dx, dy[, dz])
-        for anisotropic grids.
+        Grid spacing. Assumed isotropic; pass a tuple in Cartesian order
+        (dx, dy[, dz]) for anisotropic grids.
     """
 
     def __init__(
@@ -40,7 +40,10 @@ class EulerianGrid:
         else:
             if len(dx) != len(shape):
                 raise ValueError("len(dx) must match len(shape)")
-            self._dx = tuple(float(d) for d in dx)
+            # Public API accepts Cartesian order (dx, dy[, dz]), while the
+            # internal storage follows spatial-array order (dy, dx) or
+            # (dz, dy, dx) to match shape = (NY, NX) / (NZ, NY, NX).
+            self._dx = tuple(float(d) for d in reversed(dx))
 
     # ------------------------------------------------------------------
     # Properties
@@ -135,7 +138,11 @@ class EulerianGrid:
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
+        if len(self._dx) == 1:
+            spacing_repr = self._dx[0]
+        else:
+            spacing_repr = tuple(reversed(self._dx))
         return (
             f"EulerianGrid(shape={self._shape}, "
-            f"dx={self._dx if len(self._dx) > 1 else self._dx[0]})"
+            f"dx={spacing_repr})"
         )
