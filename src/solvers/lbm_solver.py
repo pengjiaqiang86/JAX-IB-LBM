@@ -109,45 +109,54 @@ def make_lbm_step(
 
 
 def make_lbm_trajectory(
-    lattice:          Lattice,
-    grid:             EulerianGrid,
-    params:           SimulationParams,
-    bcs:              List,
-    initial_state:    FluidState,
-    inner_step:       int,
-    outer_step:       int,
-    external_force:   Optional[jnp.ndarray] = None,
-    collision:        str = "BGK",
-) -> Callable:
+    lattice:        Lattice,
+    grid:           EulerianGrid,
+    params:         SimulationParams,
+    bcs:            List,
+    inner_steps:    int,
+    outer_steps:    int,
+    external_force: Optional[jnp.ndarray] = None,
+    collision:      str = "BGK",
+) -> Callable[[FluidState], tuple]:
     """
-    Build a JIT-compiled trajectory function using jax.lax.scan.
+    Build a JIT-compiled rollout function using funcutils.
 
-    Returns a callable with no arguments that, when called, runs the full
-    simulation and returns (final_state, snapshots).
+    Thin wrapper around funcutils.repeated + funcutils.trajectory.
+    For full control over post-processing use those directly:
 
-    The solver advances the state by `inner_step` numerical steps, records
-    one snapshot, and repeats that process `outer_step` times.
+        step_fn    = funcutils.repeated(lbm_step, steps=inner_steps)
+        rollout_fn = jax.jit(funcutils.trajectory(step_fn, outer_steps,
+                                                   post_process=my_fn,
+                                                   start_with_input=True))
+        final_state, history = rollout_fn(initial_state)
 
-    snapshots is a tuple of arrays each with shape (outer_step, *spatial):
-        (rho_hist, ux_hist, uy_hist)    for 2D
-        (rho_hist, ux_hist, uy_hist, uz_hist)  for 3D
+    Parameters
+    ----------
+    inner_steps : LBM steps between recorded snapshots
+    outer_steps : number of snapshots to record
+
+    Returns
+    -------
+    rollout_fn : Callable[[FluidState], tuple]
+        rollout_fn(initial_state) -> (final_state, (rho_hist, u_hist))
+
+        rho_hist : (outer_steps, *spatial)
+        u_hist   : (outer_steps, *spatial, D)
+
+        frame[0] is the initial state; frame[k] is after k * inner_steps steps.
     """
-    step = make_lbm_step(lattice, grid, params, bcs, external_force, collision)
+    from src.core import funcutils
 
-    @jax.jit
-    def run():
-        def one_record(state, _):
-            def inner(s, _):
-                return step(s), None
-            state_new, _ = jax.lax.scan(inner, state, None, length=inner_step)
-            rho, u = compute_macroscopic(state_new.f, lattice, state_new.g)
-            return state_new, (rho, u)
+    lbm_step = make_lbm_step(lattice, grid, params, bcs, external_force, collision)
 
-        final_state, (rho_hist, u_hist) = jax.lax.scan(
-            one_record, initial_state, None, length=outer_step
-        )
-        return final_state, rho_hist, u_hist
-        # rho_hist : (outer_step, *spatial)
-        # u_hist   : (outer_step, *spatial, D)
+    def post_process(state: FluidState):
+        rho, u = compute_macroscopic(state.f, lattice, g=state.g)
+        return rho, u
 
-    return run
+    step_fn    = funcutils.repeated(lbm_step, steps=inner_steps)
+    rollout_fn = jax.jit(
+        funcutils.trajectory(step_fn, outer_steps,
+                             post_process=post_process,
+                             start_with_input=True)
+    )
+    return rollout_fn
