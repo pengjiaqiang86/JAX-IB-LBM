@@ -240,6 +240,13 @@ def save_trajectory_netcdf(
 
     global_attrs: dict = dict(attrs) if attrs else {}
     ds = xarray.Dataset(data_vars, coords=coords, attrs=global_attrs)
+
+    # CF-convention attributes so ParaView's vtkNetCDFCFReader recognises the
+    # "time" dimension as the time axis.  Without "units" the reader treats all
+    # dimensions as spatial → "More than 3 dims without time" error for 3D grids.
+    ds["time"].attrs["units"] = "steps"
+    ds["time"].attrs["axis"]  = "T"
+
     ds.to_netcdf(path)
     print(f"Saved {path}  ({T} time steps)")
 
@@ -398,16 +405,14 @@ def save_vtk_series(
         save_vtk(snap, grid, vts_stem, z_thickness=z_thickness)
         vts_paths.append(f"{prefix}_{i:04d}.vts")
 
-    print(f"Saved {T} VTK frames to {out_dir}")
+    # Write .pvd index so ParaView can open the series as an animation
+    pvd_path = out_dir / f"{prefix}.pvd"
+    lines = ['<?xml version="1.0"?>',
+             '<VTKFile type="Collection" version="0.1">',
+             '  <Collection>']
+    for vts, t in zip(vts_paths, t_vals_arr):
+        lines.append(f'    <DataSet timestep="{t}" group="" part="0" file="{vts}"/>')
+    lines += ['  </Collection>', '</VTKFile>']
+    pvd_path.write_text("\n".join(lines))
 
-    # Write .pvd index
-    # pvd_path = out_dir / f"{prefix}.pvd"
-    # lines = ['<?xml version="1.0"?>',
-    #          '<VTKFile type="Collection" version="0.1">',
-    #          '  <Collection>']
-    # for i, (vts, t) in enumerate(zip(vts_paths, t_vals_arr)):
-    #     lines.append(f'    <DataSet timestep="{t}" group="" part="0" file="{vts}"/>')
-    # lines += ['  </Collection>', '</VTKFile>']
-
-    # pvd_path.write_text("\n".join(lines))
-    # print(f"Saved {T} VTK frames + index to {pvd_path}")
+    print(f"Saved {T} VTK frames + index {pvd_path}")
