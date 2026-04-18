@@ -1,0 +1,12 @@
+# Core
+jax==0.9.0
+jaxlib==0.9.0
+numpy==2.2.6
+matplotlib==3.10.0
+
+# Export (optional — needed for save_netcdf / save_trajectory_netcdf)
+xarray==2025.3.0
+netCDF4==1.7.4
+
+# Export (optional — needed for save_vtk / save_vtk_series)
+pyevtk==1.6.0
