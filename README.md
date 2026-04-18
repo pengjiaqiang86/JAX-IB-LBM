@@ -65,7 +65,7 @@ examples/
 
 ### 2D Lid-Driven Cavity
 
-https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_lid_driven_cavity.mp4
+![2d-Lid-driven_cavity](https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_lid_driven_cavity.gif)
 
 ### 2D Taylor-Green Vortex
 
@@ -77,11 +77,11 @@ https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_lid_driven_cavity
 
 ### 2D Static Circular Cylinder — Bounce-Back
 
-https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_static_circular_cylinder.mp4
+![2D-static_circular_cylinder](https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_static_circular_cylinder.gif)
 
 ### 2D Static Circular Cylinder — Immersed Boundary
 
-https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_static_circular_cylinder_ib.mp4
+![2D-static_circular_cylinder-ib](https://github.com/pengjiaqiang86/JAX-IB-LBM/blob/main/imgs/2d_static_circular_cylinder_ib.gif)
 
 ## Roadmap
 
