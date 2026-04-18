@@ -1,14 +1,3 @@
-"""
-Neumann (zero normal-gradient) boundary conditions.
-
-Strategies
-----------
-zero_gradient  : f[:, -1, :] = f[:, -2, :]  (simple copy)
-convective     : f_bc^{n+1} = f_bc^n - u_c * dt/dx * (f_bc^n - f_int^n)
-                 where u_c is a user-supplied convective velocity.
-                 Useful for outflow BCs that prevent reflections.
-"""
-
 from typing import NamedTuple, Literal
 
 import jax.numpy as jnp
@@ -20,7 +9,14 @@ from src.core.state import FluidState
 
 class NeumannBC(NamedTuple):
     """
-    Zero normal-gradient boundary condition.
+    Neumann (zero normal-gradient) boundary conditions.
+
+    Strategies
+    ----------
+    zero_gradient  : f[:, -1, :] = f[:, -2, :]  (simple copy)
+    convective     : f_bc^{n+1} = f_bc^n - u_c * dt/dx * (f_bc^n - f_int^n)
+                    where u_c is a user-supplied convective velocity.
+                    Useful for outflow BCs that prevent reflections.
 
     Parameters
     ----------

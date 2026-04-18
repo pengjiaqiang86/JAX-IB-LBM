@@ -1,22 +1,3 @@
-"""
-Bounce-back boundary conditions for no-slip walls.
-
-BounceBackBC  — full bounce-back on an arbitrary boolean solid mask.
-                Supports stationary walls and moving walls (lid-driven cavity).
-
-Notes
------
-Full bounce-back: after streaming, the post-collision population that entered
-a solid node is reflected back:
-
-    f(x, opp[q], t+1) = f_post(x, q, t)    for solid x
-
-For a moving wall with velocity u_wall, the half-way bounce-back adds a
-momentum correction:
-
-    Δf = 2 * w[q] * rho * (c[q] · u_wall) / cs^2
-"""
-
 from typing import NamedTuple, Optional
 
 import jax
@@ -29,7 +10,23 @@ from src.core.state import FluidState
 
 class BounceBackBC(NamedTuple):
     """
-    Full bounce-back on a boolean solid mask.
+    Full bounce-back on a boolean solid mask.  
+    Bounce-back boundary conditions for no-slip walls.
+
+    BounceBackBC  — full bounce-back on an arbitrary boolean solid mask.
+                    Supports stationary walls and moving walls (lid-driven cavity).
+
+    Notes
+    -----
+    Full bounce-back: after streaming, the post-collision population that entered
+    a solid node is reflected back:
+
+        f(x, opp[q], t+1) = f_post(x, q, t)    for solid x
+
+    For a moving wall with velocity u_wall, the half-way bounce-back adds a
+    momentum correction:
+
+    Δf = 2 * w[q] * rho * (c[q] · u_wall) / cs^2
 
     Parameters
     ----------

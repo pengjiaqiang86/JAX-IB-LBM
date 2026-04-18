@@ -1,7 +1,3 @@
-"""
-SimulationParams: physical and LBM parameters derived from Re, u_ref, L_ref.
-"""
-
 from typing import NamedTuple
 
 from src.core.lattice import Lattice

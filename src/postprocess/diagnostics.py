@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 
 from src.core.lattice import Lattice
-from src.core.grid import EulerianGrid
 
 
 def compute_drag_lift(

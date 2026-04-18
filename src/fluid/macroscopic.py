@@ -1,9 +1,3 @@
-"""
-Macroscopic quantities from distribution functions.
-
-All functions are pure JAX — no side effects, JIT-safe.
-"""
-
 from typing import Optional, Tuple
 
 import jax.numpy as jnp

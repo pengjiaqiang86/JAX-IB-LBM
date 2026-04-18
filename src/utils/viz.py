@@ -1,7 +1,3 @@
-"""
-Matplotlib plotting helpers.
-"""
-
 from typing import Optional
 
 import numpy as np

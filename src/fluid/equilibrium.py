@@ -1,10 +1,3 @@
-"""
-Maxwell-Boltzmann equilibrium distribution for LBM.
-
-Works for any lattice (D2Q9, D3Q19, D3Q27) through the generic
-Lattice interface.
-"""
-
 import jax.numpy as jnp
 
 from src.core.lattice import Lattice

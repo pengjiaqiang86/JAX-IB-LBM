@@ -1,16 +1,3 @@
-"""
-Dirichlet boundary conditions via the Zou-He scheme.
-
-Implemented coverage:
-  - D2Q9 velocity BCs on west/east faces
-  - D2Q9 pressure BCs on west/east faces
-  - Spatially and temporally varying profiles via callable u_fn / rho_fn
-
-Reference
----------
-Zou & He, Phys. Fluids 9 (1997), 1591-1598.
-"""
-
 from typing import Callable, Union, NamedTuple
 
 import jax.numpy as jnp
@@ -124,7 +111,16 @@ def _zou_he_pressure_west_d2q9(
 
 class DirichletVelocityBC(NamedTuple):
     """
-    Zou-He velocity Dirichlet BC.
+    Dirichlet boundary conditions via the Zou-He scheme.
+
+    Implemented coverage:
+    - D2Q9 velocity BCs on west/east faces
+    - D2Q9 pressure BCs on west/east faces
+    - Spatially and temporally varying profiles via callable u_fn / rho_fn
+
+    Reference
+    ---------
+    Zou & He, Phys. Fluids 9 (1997), 1591-1598.
 
     Parameters
     ----------

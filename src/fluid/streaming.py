@@ -1,10 +1,3 @@
-"""
-Streaming (advection) step.
-
-Uses jnp.roll — inherently periodic on all axes.
-Boundary conditions override the boundary cells after this step.
-"""
-
 import numpy as np
 import jax.numpy as jnp
 
@@ -16,7 +9,11 @@ def stream(
     lattice: Lattice,
 ) -> jnp.ndarray:
     """
+    Streaming (advection) step.  
     Shift each f[..., q] by the corresponding lattice velocity c[q].
+
+    Uses jnp.roll — inherently periodic on all axes.  
+    Boundary conditions override the boundary cells after this step.
 
     Parameters
     ----------

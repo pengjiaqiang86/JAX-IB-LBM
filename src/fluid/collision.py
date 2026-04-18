@@ -1,19 +1,6 @@
-"""
-Collision operators.
-
-BGK  — single-relaxation-time (SRT), simplest and most common.
-MRT  — multiple-relaxation-time, better stability for low viscosity.
-
-Both operators accept an optional body-force correction array `g_force`
-(pre-computed by the Guo forcing scheme in src/forcing/guo.py).
-When g_force is None the operators reduce to the standard BGK/MRT.
-"""
-
 from typing import Optional
 
 import jax.numpy as jnp
-
-from src.core.lattice import Lattice
 
 
 # ---------------------------------------------------------------------------

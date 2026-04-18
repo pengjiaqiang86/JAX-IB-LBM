@@ -1,14 +1,3 @@
-"""
-Periodic boundary conditions.
-
-The streaming step uses jnp.roll which is already periodic on all axes,
-so PeriodicBC is a metadata/no-op object that:
-  1. Documents which axes are periodic (for diagnostics, postprocessing).
-  2. Can be queried by the solver to skip non-periodic ghost-cell handling.
-
-No modification to f is performed.
-"""
-
 from typing import NamedTuple, Tuple
 
 import jax.numpy as jnp
@@ -20,7 +9,14 @@ from src.core.state import FluidState
 
 class PeriodicBC(NamedTuple):
     """
-    Marks one or more spatial axes as periodic.
+    Periodic boundary conditions.
+
+    The streaming step uses jnp.roll which is already periodic on all axes,
+    so PeriodicBC is a metadata/no-op object that:
+    1. Documents which axes are periodic (for diagnostics, postprocessing).
+    2. Can be queried by the solver to skip non-periodic ghost-cell handling.
+
+    No modification to f is performed.
 
     Parameters
     ----------

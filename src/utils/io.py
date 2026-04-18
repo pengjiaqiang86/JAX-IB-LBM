@@ -1,9 +1,3 @@
-"""
-Checkpoint save / load utilities.
-
-Saves FluidState (and optionally LagrangianBody) as NumPy .npz files.
-"""
-
 from pathlib import Path
 from typing import Optional
 

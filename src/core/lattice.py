@@ -1,22 +1,20 @@
-"""
-Lattice descriptors: D2Q9, D3Q19, D3Q27.
-
-All arrays follow the convention:
-  c   : (Q, D)  integer velocity vectors
-  w   : (Q,)    quadrature weights
-  opp : (Q,)    index of the opposite direction  (c[opp[q]] == -c[q])
-
-The same equilibrium / streaming / collision code works for every lattice
-because all operations are written in terms of these arrays.
-"""
-
 from typing import NamedTuple
 
 import jax.numpy as jnp
 
 
 class Lattice(NamedTuple):
-    """Immutable, JAX-traceable lattice definition."""
+    """
+    Immutable, JAX-traceable lattice definition: D2Q9, D3Q19, D3Q27.
+
+    All arrays follow the convention:
+    c   : (Q, D)  integer velocity vectors
+    w   : (Q,)    quadrature weights
+    opp : (Q,)    index of the opposite direction  (c[opp[q]] == -c[q])
+
+    The same equilibrium / streaming / collision code works for every lattice
+    because all operations are written in terms of these arrays.
+    """    
 
     D:   int            # spatial dimension
     Q:   int            # number of discrete velocities
