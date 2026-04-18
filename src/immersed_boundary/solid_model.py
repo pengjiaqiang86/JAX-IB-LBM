@@ -1,0 +1,6 @@
+class SolidModel:
+    ...
+
+
+class RigidBody(SolidModel):
+    ...

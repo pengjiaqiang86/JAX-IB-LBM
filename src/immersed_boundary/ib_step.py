@@ -1,46 +1,30 @@
-"""
-IB coupling step: one full Lagrangian-Eulerian interaction cycle.
-
-Order of operations (classic IB / Peskin scheme):
-  1. Interpolate Eulerian velocity u^n to markers → U_L^n
-  2. Advance marker positions: X^{n+1} = X^n + dt * U_L^n
-  3. Compute elastic restoring force F_L = elasticity_model(body^{n+1})
-  4. Spread F_L → Eulerian body-force field g
-  5. Store g in FluidState so the collision step applies it via Guo forcing.
-
-Returns updated (FluidState, LagrangianBody).
-"""
-
-from typing import Callable
-
-import jax.numpy as jnp
-
 from src.core.state import FluidState
 from src.core.grid import EulerianGrid
 from src.core.lattice import Lattice
-from src.immersed_boundary.markers import LagrangianBody
-from src.immersed_boundary.delta import DeltaKernel, PESKIN_4PT
-from src.immersed_boundary.interpolation import ib_velocity_interpolation
-from src.immersed_boundary.spreading import ib_force_spreading
 from src.fluid.macroscopic import compute_macroscopic
+from src.immersed_boundary.geometry import PointCloud2D
+from src.immersed_boundary.delta import DeltaKernel, PESKIN_4PT
+from src.immersed_boundary.solid_model import SolidModel, RigidBody
+from src.immersed_boundary.interpolation import interpolation
+from src.immersed_boundary.spreading import spreading
 
 
 def ib_step(
-    state:             FluidState,
-    body:              LagrangianBody,
-    grid:              EulerianGrid,
-    lattice:           Lattice,
-    elasticity_model:  Callable,
-    kernel:            DeltaKernel = PESKIN_4PT,
-    dt:                float = 1.0,
-) -> tuple:
+        state:       FluidState,
+        body:        PointCloud2D,
+        grid:        EulerianGrid,
+        lattice:     Lattice,
+        solid_model: SolidModel,
+        kernel:      DeltaKernel = PESKIN_4PT,
+        dt:          float = 1.0,
+) -> "FluidState":
     """
     One IB-LBM coupling cycle.
 
     Parameters
     ----------
     state            : current FluidState  (g will be overwritten)
-    body             : current LagrangianBody
+    body             : current IBGeometry
     grid             : EulerianGrid
     lattice          : Lattice
     elasticity_model : Callable (body) -> LagrangianBody  with updated F
@@ -51,23 +35,27 @@ def ib_step(
     -------
     (state_new, body_new) : updated fluid state (g set) and Lagrangian body
     """
-    # 1. Get current Eulerian velocity
+    # 1. Get current fluid velocity
     _, u = compute_macroscopic(state.f, lattice, state.g)   # (*spatial, D)
 
-    # 2. Interpolate u → Lagrangian markers
-    U_L = ib_velocity_interpolation(u, body, grid, kernel)   # (N, D)
+    # 2. Compute velocity difference
+    u_interp = interpolation(u, body, grid, kernel)
 
-    # 3. Advance marker positions (forward Euler)
-    X_new = body.X + dt * U_L
+    # 3. Compute forcing term based on direct-forcing method, and spread force from solid to fluid
+    # TODO, fluid density shape (Ny, Nx), velocity shape (N, 2), they cannot multiply
+    # Assume uniform density
+    # ib_forcing_solid = state.rho() / 1.0 * (body.V - u_interp)
+    ib_forcing_solid = state.rho().mean() / 1.0 * (body.V - u_interp)
 
-    # 4. Compute elastic restoring forces at new positions
-    body_new = body.with_positions(X_new).with_velocities(U_L)
-    body_new = elasticity_model(body_new)
+    # 4. Spread forcing from solid to fluid
+    ib_forcing_fluid = spreading(ib_forcing_solid, body, grid, kernel)
 
-    # 5. Spread Lagrangian forces to Eulerian grid
-    g = ib_force_spreading(body_new, grid, kernel)   # (*spatial, D)
+    # 5. Add forcing term to LBM step
+    state_new = state.with_g(ib_forcing_fluid)
 
-    # 6. Attach body force to fluid state
-    state_new = state.with_g(g)
+    # 6. Update solid position / velocity / acceleration
+    # body_new = body.update_X().update_V()
+    # TODO, currently, only static rigid solid is implemented
+    body_new = body
 
     return state_new, body_new

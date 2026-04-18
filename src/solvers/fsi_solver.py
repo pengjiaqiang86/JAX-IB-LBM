@@ -7,7 +7,7 @@ from src.core.lattice import Lattice
 from src.core.grid import EulerianGrid
 from src.core.state import FluidState
 from src.core.params import SimulationParams
-from src.immersed_boundary.markers import LagrangianBody
+from src.immersed_boundary.geometry import PointCloud2D
 from src.immersed_boundary.delta import DeltaKernel, PESKIN_4PT
 from src.immersed_boundary.ib_step import ib_step
 from src.solvers.lbm_solver import make_lbm_step
@@ -23,8 +23,8 @@ def make_fsi_step(
     dt:               float = 1.0,
     external_force:   Optional[jnp.ndarray] = None,
     collision:        str = "BGK",
-) -> Callable[[FluidState, LagrangianBody],
-              Tuple[FluidState, LagrangianBody]]:
+) -> Callable[[FluidState, PointCloud2D],
+              Tuple[FluidState, PointCloud2D]]:
     """
     Build a JIT-compiled FSI step function.
 
@@ -54,8 +54,8 @@ def make_fsi_step(
     @jax.jit
     def fsi_step(
         state: FluidState,
-        body:  LagrangianBody,
-    ) -> Tuple[FluidState, LagrangianBody]:
+        body:  PointCloud2D,
+    ) -> Tuple[FluidState, PointCloud2D]:
         # IB coupling: spread elastic forces → state.g  (dynamic channel)
         state_with_force, body_new = ib_step(
             state, body, grid, lattice, elasticity_model, kernel, dt
