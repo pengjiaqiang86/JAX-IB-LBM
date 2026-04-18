@@ -1,3 +1,6 @@
+# Experiments
+experiments/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -87,3 +90,6 @@ venv.bak/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Codex
+.codex
